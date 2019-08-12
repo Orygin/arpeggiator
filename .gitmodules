@@ -1,0 +1,6 @@
+[submodule "libraries/arduino_midi_library"]
+	path = libraries/arduino_midi_library
+	url = https://github.com/FortySevenEffects/arduino_midi_library.git
+[submodule "libraries/encoder"]
+	path = libraries/encoder
+	url = https://github.com/Orygin/encoder.git

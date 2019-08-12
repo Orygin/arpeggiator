@@ -1,4 +1,4 @@
-#include <MIDI.h>
+#include "MIDI.h"
 typedef enum {C, CD, D, DD, E, F, FD, G, GD, A, AD, B} notes;
 typedef enum {maj, minor, dim, aug} chord_types;
 
@@ -26,7 +26,7 @@ private:
     //unsigned int mode[6];
     unsigned int indelay;
     unsigned int progression;
-    chord *mode;
+    const chord *mode;
     int order;
 public:
     arp();

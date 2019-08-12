@@ -28,7 +28,7 @@ const chord locrian[7]    = {{0, dim},    {1, maj},   {3, minor}, {5, minor}, {6
 const chord *all_chords[8] = {ionian, dorian, phrygian, lydian, mixolydian, aeolian, harmonic, locrian};
 
 // Arrange the N elements of ARRAY in random order.  
-void shuffle(int *array, size_t n)
+void shuffle(short *array, size_t n)
 {
     if (n > 1) 
     {
