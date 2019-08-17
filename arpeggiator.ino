@@ -21,7 +21,7 @@ int ButtonVal;
 
 void setup()
 {
-  a.midibegin();
+  a.midibegin(3, 1);
   // LED pin
   pinMode(LEDPin, OUTPUT);
   
