@@ -14,7 +14,7 @@
 // ----------------------------------------------------------------------------
 // Button configuration (values for 1ms timer service calls)
 //
-#define ENC_BUTTONINTERVAL    10  // check button every x milliseconds, also debouce time
+#define ENC_BUTTONINTERVAL    5  // check button every x milliseconds, also debouce time
 
 // ----------------------------------------------------------------------------
 // Acceleration configuration (for 1000Hz calls to ::service())
@@ -41,7 +41,7 @@
 
 // ----------------------------------------------------------------------------
 
-ClickEncoder::ClickEncoder(int8_t A, int8_t B, int8_t BTN, uint8_t stepsPerNotch, bool active)
+ClickEncoder::ClickEncoder(int8_t A, int8_t B, int8_t BTN, uint8_t stepsPerNotch, bool active, Adafruit_MCP23017 *mcp)
   : doubleClickEnabled(true),buttonHeldEnabled(true), accelerationEnabled(true),
     delta(0), last(0), acceleration(0),
     button(Open), steps(stepsPerNotch),
@@ -50,22 +50,50 @@ ClickEncoder::ClickEncoder(int8_t A, int8_t B, int8_t BTN, uint8_t stepsPerNotch
     , analogInput(false)
 #endif
 {
-  pinMode_t configType = (pinsActive == LOW) ? INPUT_PULLUP : INPUT;
-  if (pinA >= 0) {pinMode(pinA, configType);}
-  if (pinB >= 0) {pinMode(pinB, configType);}
-#ifndef WITHOUT_BUTTON
-  if (pinBTN >= 0) {pinMode(pinBTN, configType);}
-#endif
-  
-  if (digitalRead(pinA) == pinsActive) {
-    last = 3;
-  }
-
-  if (digitalRead(pinB) == pinsActive) {
-    last ^=1;
-  }
+    externalIO = mcp != NULL;
+    io = mcp;
 }
+void ClickEncoder::setup() {
+    externalIO = io != NULL;
 
+    pinMode_t configType = (pinsActive == LOW) ? INPUT : INPUT;
+    if (pinA >= 0) {
+        if (externalIO)
+            io->pinMode(pinA, configType);
+        else
+            pinMode(pinA, configType);
+    }
+    if (pinB >= 0) {
+        if (externalIO)
+            io->pinMode(pinB, configType);
+        else
+            pinMode(pinB, configType);
+    }
+#ifndef WITHOUT_BUTTON
+    if (pinBTN >= 0) {
+        if (externalIO)
+            io->pinMode(pinBTN, configType);
+        else
+            pinMode(pinBTN, configType);
+    }
+#endif
+
+    bool rpiA, rpiB;
+    if (externalIO) {
+        rpiA = io->digitalRead(pinA);
+        rpiB = io->digitalRead(pinB);
+    } else {
+        rpiA = digitalRead(pinA);
+        rpiB = digitalRead(pinB);
+    }
+    if (rpiA == pinsActive) {
+        last = 3;
+    }
+
+    if (rpiB == pinsActive) {
+        last ^=1;
+    }
+}
 // ----------------------------------------------------------------------------
 #ifndef WITHOUT_BUTTON
 
@@ -96,8 +124,11 @@ DigitalButton::DigitalButton(int8_t BTN, bool active) : ClickEncoder(BTN, active
 
 AnalogButton::AnalogButton(int8_t BTN, int16_t rangeLow, int16_t rangeHigh) : ClickEncoder(BTN, (bool)false)
 {
-  pinMode(pinBTN, INPUT);
-  
+    if (externalIO)
+        io->pinMode(pinBTN, INPUT);
+    else
+        pinMode(pinBTN, INPUT);
+
   anlogActiveRangeLow = rangeLow;
   anlogActiveRangeHigh = rangeHigh;
   analogInput = true;
@@ -125,14 +156,24 @@ void ClickEncoder::service(void)
     }
   }
 
+  // Read pins
+  bool rpiA, rpiB;
+  if (externalIO) {
+      rpiA = io->digitalRead(pinA);
+      rpiB = io->digitalRead(pinB);
+  } else {
+      rpiA = digitalRead(pinA);
+      rpiB = digitalRead(pinB);
+  }
+
 #if ENC_DECODER == ENC_FLAKY
   last = (last << 2) & 0x0F;
 
-  if (digitalRead(pinA) == pinsActive) {
+  if (rpiA == pinsActive) {
     last |= 2;
   }
 
-  if (digitalRead(pinB) == pinsActive) {
+  if (rpiB == pinsActive) {
     last |= 1;
   }
 
@@ -144,12 +185,13 @@ void ClickEncoder::service(void)
 #elif ENC_DECODER == ENC_NORMAL
   int8_t curr = 0;
 
-  if (digitalRead(pinA) == pinsActive) {
-    curr = 3;
+  // Change flags
+  if (rpiA == pinsActive) {
+      curr = 3;
   }
 
-  if (digitalRead(pinB) == pinsActive) {
-    curr ^= 1;
+  if (rpiB == pinsActive) {
+      curr ^=1;
   }
   
   int8_t diff = last - curr;
@@ -274,7 +316,10 @@ bool ClickEncoder::getPinState() {
     int16_t pinValue = analogRead(pinBTN);
     pinState = ((pinValue >= anlogActiveRangeLow) && (pinValue <= anlogActiveRangeHigh)) ?  LOW : HIGH;    // set result to LOW (button pressed) if analog input is in range
   } else {
-    pinState = digitalRead(pinBTN);
+      if (externalIO)
+        pinState = io->digitalRead(pinBTN);
+      else
+        pinState = digitalRead(pinBTN);
   }
   return pinState;
 }

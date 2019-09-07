@@ -1,9 +1,7 @@
 #include "arpEngine.h"
 #include "Arduino.h"
+#include "TempoTimer.h"
 
-HardwareSerial MySerial(2);
-
-MIDI_CREATE_INSTANCE(HardwareSerial, MySerial, MIDI);
 
 // C Ionian     { C maj;  D min;  E min;  F maj;  G maj;  A min;  B dim  }
 const chord ionian[7]     = {{0, maj},    {2, minor}, {4, minor}, {5, maj},   {7, maj},   {9, minor}, {11, dim}};
@@ -94,13 +92,14 @@ short midiByNote (notes note, short octave)
     return (octave+1)*12 + (int)note;
 }
 
-void arp::play()
+void arp::start()
 {
     int i;
     short shift, oct_shift=0, bn;
-    unsigned short sh1, sh2, notes_added=0;
+    unsigned short sh1, sh2;
+    notes_added=0;
     notes curNote[3];
-    short notestoplay[15] = {0,0,0,0,0,0,0,0,0,0};
+
     // Play base note
     if ((int)baseNote + (int)mode[progression].Shift > 11)
         baseOctave++;
@@ -110,6 +109,8 @@ void arp::play()
     
     // Create chord (notes root, intervals i, int *notes_array)
     createChord((notes)i, mode[progression].chord_type, (int*)curNote, &sh1, &sh2);
+
+    portENTER_CRITICAL(&_lock);
 
     // Create the progression
     if ((order == 0)||(order==2)||(order==3))
@@ -139,35 +140,49 @@ void arp::play()
 
     if (order==3)
       shuffle(notestoplay, notes_added);
+
+    portEXIT_CRITICAL(&_lock);
+
     //Serial.print(bn); Serial.print("\r\n");
-    MIDI.sendNoteOn(bn, 127, 1);
-    for (i=0; i<notes_added; i++)
+    //MIDI.sendNoteOn(bn, 127, 1);
+    /*for (i=0; i<notes_added; i++)
     {
         //Serial.print(notestoplay[i]); Serial.print("\r\n");
-        printf("Midinote: %d\n", notestoplay[i]);
-        MIDI.sendNoteOn(notestoplay[i], 127, 1);
 
-        // Delay value from poti
-        vTaskDelay(100 / portTICK_PERIOD_MS);
-
-        #ifdef EXT_SYNC
-        // Wait for click from sync in
-        while ((digitalRead(syncinpin) == 0));
-        vTaskDelay(65/ portTICK_PERIOD_MS);
-        #endif
-        // Stop note
-        MIDI.sendNoteOff(notestoplay[i], 0, 1);     // Stop the note
-        vTaskDelay(200 / portTICK_PERIOD_MS);
     }
 
     //Stop base note
-    MIDI.sendNoteOff(bn, 0, 1);
+    MIDI.sendNoteOff(bn, 0, 1);*/
+}
+
+void tempoTick()
+{
+
+}
+
+void arp::play() {
+    if (currentBeat == 0){
+        MIDI.sendNoteOn(notestoplay[currentNote], 127, 1);
+        printf("Midinote: %d\n", notestoplay[0]);
+    }
+
+    if (currentBeat == (BPM_PRECISION/2)) {
+        MIDI.sendNoteOff(notestoplay[currentNote], 0, 1);
+        currentNote++;
+    }
+
+    currentBeat++;
+    if (currentBeat == BPM_PRECISION)
+        currentBeat = 0;
+    if (currentNote == notes_added)
+        currentNote = 0;
 }
 
 arp::arp(notes bn, short bo, short os, unsigned short st, unsigned int d, unsigned m, unsigned int p) : baseNote(bn), baseOctave(bo), octaveShift(os), steps(st), indelay(d), progression(p)
 {
   order = 0;
   mode = all_chords[m];
+    _lock = portMUX_TYPE{portMUX_FREE_VAL, 0};
 }
 
 arp::arp()
@@ -179,6 +194,7 @@ arp::arp()
     indelay = 200;
     progression = 0;
     mode = ionian;
+    _lock = portMUX_TYPE{portMUX_FREE_VAL, 0};
 }
  void arp::midibegin(int rxPin, int txPin)
  {

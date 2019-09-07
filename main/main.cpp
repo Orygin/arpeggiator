@@ -12,9 +12,11 @@
 #include "esp_system.h"
 #include "esp_spi_flash.h"
 #include "Arduino.h"
-#include "rotaryEnc.h"
-#include "arpTask.h"
-
+#include "inputTask.h"
+#include "menuController.h"
+#include "displayController.h"
+#include "tempoTimer.h"
+#include "Sequencor.h"
 
 extern "C" {
 void app_main();
@@ -24,10 +26,22 @@ void app_main() {
     printf("Hello world!\n");
     printf("Welcome to this Apreggiator first build!\n");
 
-    TaskHandle_t xHandleRotary = NULL;
-    TaskHandle_t xHandleArp = NULL;
-    //xTaskCreatePinnedToCore(setupTestRotaryEnc, "RotaryEnc", 5000, ( void * ) 1, 1, &xHandleRotary, 1);
-    xTaskCreatePinnedToCore(setupTestArpeggiator, "Arp", 5000, (void*)1, 2, &xHandleArp, 0);
-    //setupTestRotaryEnc();
-    //initArduino();
+
+    printf("Setup inputs\n");
+    setupInputs();
+    printf("Setup display\n");
+    setupDisplayController();
+
+    printf("Start sequencer task\r");
+    TaskHandle_t xHandleSequencer = NULL;
+    xTaskCreatePinnedToCore(startSequencorTask, "SEQUENCE", 5000, (void*)1, 1, &xHandleSequencer, 0);
+
+    printf("Setup tempo\n");
+    setupTempoTimer(xHandleSequencer);
+
+    TaskHandle_t xHandleInput = NULL;
+    TaskHandle_t xHandleMenu = NULL;
+    xTaskCreatePinnedToCore(taskMenuController, "MENU", 5000, ( void * ) 1, 1, &xHandleMenu, 1);
+    xTaskCreatePinnedToCore(startInputTask, "INPUT", 5000, ( void * ) 1, 1, &xHandleInput, 1);
+    //xTaskCreatePinnedToCore(setupTestArpeggiator, "Arp", 5000, (void*)1, 2, &xHandleArp, 0);
 }

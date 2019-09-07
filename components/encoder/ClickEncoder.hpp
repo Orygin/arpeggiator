@@ -27,6 +27,7 @@
 #include <avr/pgmspace.h>
 #endif
 #include "Arduino.h"
+#include "Adafruit_MCP23017.h"
 
 // ----------------------------------------------------------------------------
 
@@ -72,13 +73,13 @@ public:
 
 public:
   ClickEncoder(int8_t A, int8_t B, int8_t BTN = -1, 
-               uint8_t stepsPerNotch = 4, bool active = LOW);
+               uint8_t stepsPerNotch = 4, bool active = LOW, Adafruit_MCP23017 *mcp = NULL);
 			   
 #ifndef WITHOUT_BUTTON
   explicit ClickEncoder(int8_t BTN, bool active = false);   // Depricated.  Use Digtial Button instead
 
 #endif
-
+    void setup(void);
   void service(void);  
   int16_t getValue(void);
 
@@ -160,6 +161,8 @@ protected:
     int8_t pinB;
     int8_t pinBTN;
     bool pinsActive;
+    bool externalIO;
+    Adafruit_MCP23017 *io;
 #if ENC_DECODER != ENC_NORMAL
     static const int8_t table[16];
 #endif

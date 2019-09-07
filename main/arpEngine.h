@@ -1,4 +1,5 @@
 #include "MIDI.h"
+#include "FreeRTOS.h"
 typedef enum {C, CD, D, DD, E, F, FD, G, GD, A, AD, B} notes;
 typedef enum {maj, minor, dim, aug} chord_types;
 
@@ -28,6 +29,11 @@ private:
     unsigned int progression;
     const chord *mode;
     int order;
+    short notestoplay[15] = {0,0,0,0,0,0,0,0,0,0};
+    unsigned short notes_added;
+    portMUX_TYPE _lock;
+    int currentBeat = 0;
+    int currentNote = 0;
 public:
     arp();
     arp(notes bn, short bo, short os, unsigned short st, unsigned int d, unsigned m, unsigned int p);
@@ -35,9 +41,13 @@ public:
     int setProgression(unsigned int p);
     void play();
     void midibegin(int rxPin, int txPin);
+    void setDelay(unsigned int d) { indelay = d; }
+    unsigned int getDelay() { return indelay; }
+    void start();
 };
 
 void createChord(notes root, chord_types i, int *notes_array, unsigned short *sh1, unsigned short *sh2);
 short midiByNote (notes note, short octave);
+void tempoTick();
 
 
